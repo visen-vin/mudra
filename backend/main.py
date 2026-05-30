@@ -9,7 +9,7 @@ app = FastAPI(title="Mudra Trading", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # restrict in production
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
