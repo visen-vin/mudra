@@ -29,9 +29,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install production dependencies
+# Install production dependencies and sqlite3
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends curl sqlite3 && \
+    pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy backend code
 COPY --from=backend /app/backend ./backend
