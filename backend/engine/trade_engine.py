@@ -2,7 +2,8 @@
 from backend.database import Position, SessionLocal
 from backend.engine.position_monitor import PositionMonitor
 from backend.engine.pnl_calculator import PnLCalculator
-from typing import Optional, Dict
+from backend.schemas import Order
+from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
 import logging
@@ -15,9 +16,13 @@ class TradeEngine:
 
     def __init__(self):
         self.monitor = PositionMonitor()
-        self.open_positions: Dict[str, Position] = {}
+        self.adapters: Dict[str, Any] = {}
 
-    def open_position(
+    def register_adapter(self, market: str, adapter: Any):
+        """Register a market adapter (e.g., Binance for 'crypto')"""
+        self.adapters[market] = adapter
+
+    async def open_position(
         self,
         symbol: str,
         market: str,
@@ -30,6 +35,30 @@ class TradeEngine:
         signal_id: Optional[str] = None
     ) -> Position:
         """Create and persist a new position"""
+        
+        if mode == "live":
+            adapter = self.adapters.get(market)
+            if not adapter:
+                logger.error(f"No adapter registered for market: {market}")
+                raise ValueError(f"No adapter registered for market: {market}")
+            
+            # Create order request
+            order = Order(
+                symbol=symbol,
+                side=side,
+                qty=qty,
+                price=None  # Market order by default for simplicity
+            )
+            
+            logger.info(f"Placing live {side} order for {symbol} ({qty} units)")
+            resp = await adapter.place_order(order)
+            
+            if not resp.order_id:
+                logger.error(f"Live order failed: {resp.status}")
+                raise RuntimeError(f"Live order failed: {resp.status}")
+            
+            logger.info(f"Live order successful: {resp.order_id}")
+
         db = SessionLocal()
         try:
             position = Position(
@@ -51,12 +80,12 @@ class TradeEngine:
             db.commit()
             db.refresh(position)
 
-            self.open_positions[position.id] = position
-            logger.info(f"Position opened: {position.id} {symbol} {side} @ {entry_price}")
+            logger.info(f"Position opened: {position.id} {symbol} {side} @ {entry_price} ({mode} mode)")
 
             return position
         finally:
             db.close()
+
 
     def get_position(self, position_id: str) -> Optional[Position]:
         """Get position by ID"""
@@ -74,7 +103,7 @@ class TradeEngine:
         finally:
             db.close()
 
-    def close_position_manual(self, position_id: str, exit_price: float) -> Position:
+    async def close_position_manual(self, position_id: str, exit_price: float) -> Position:
         """Manually close a position"""
         db = SessionLocal()
         try:

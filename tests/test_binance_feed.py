@@ -129,16 +129,6 @@ async def test_binance_get_price_rest_fallback():
     assert adapter.prices["BTCUSDT"] == 52000.0  # cached
 
 @pytest.mark.asyncio
-async def test_binance_place_order_not_implemented():
-    """Test that place_order raises NotImplementedError"""
-    adapter = BinanceAdapter()
-
-    order = Order(symbol="BTCUSDT", side="long", qty=1.0, price=50000.0)
-
-    with pytest.raises(NotImplementedError):
-        await adapter.place_order(order)
-
-@pytest.mark.asyncio
 async def test_binance_get_price_before_connect_returns_none():
     """Test that get_price returns None if connect() not called"""
     adapter = BinanceAdapter()  # session is None

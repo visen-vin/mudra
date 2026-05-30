@@ -4,12 +4,13 @@ from backend.engine.trade_engine import TradeEngine
 from backend.database import SessionLocal
 
 
+@pytest.mark.asyncio
 @pytest.mark.usefixtures("setup_db")
-def test_open_position():
+async def test_open_position():
     """Test opening a new position"""
     engine = TradeEngine()
 
-    position = engine.open_position(
+    position = await engine.open_position(
         symbol="BTCUSDT",
         market="crypto",
         side="long",
@@ -30,13 +31,14 @@ def test_open_position():
     assert position.tp == 51000
 
 
+@pytest.mark.asyncio
 @pytest.mark.usefixtures("setup_db")
-def test_get_open_positions():
+async def test_get_open_positions():
     """Test retrieving all open positions"""
     engine = TradeEngine()
 
     # Open two positions
-    pos1 = engine.open_position(
+    pos1 = await engine.open_position(
         symbol="BTCUSDT",
         market="crypto",
         side="long",
@@ -46,7 +48,7 @@ def test_get_open_positions():
         tp=51000
     )
 
-    pos2 = engine.open_position(
+    pos2 = await engine.open_position(
         symbol="ETHUSDT",
         market="crypto",
         side="short",
@@ -63,13 +65,14 @@ def test_get_open_positions():
     assert any(p.id == pos2.id for p in open_positions)
 
 
+@pytest.mark.asyncio
 @pytest.mark.usefixtures("setup_db")
-def test_close_position_manual():
+async def test_close_position_manual():
     """Test manually closing a position"""
     engine = TradeEngine()
 
     # Open a position
-    position = engine.open_position(
+    position = await engine.open_position(
         symbol="BTCUSDT",
         market="crypto",
         side="long",
@@ -80,7 +83,7 @@ def test_close_position_manual():
     )
 
     # Close it manually
-    closed_position = engine.close_position_manual(position.id, exit_price=51000)
+    closed_position = await engine.close_position_manual(position.id, exit_price=51000)
 
     assert closed_position.status == "CLOSED"
     assert closed_position.exit_price == 51000

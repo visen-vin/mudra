@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # If 8000 is already in use, change the first number (e.g., "8080:8000")
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///data/mudra.db
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      # If 5173 is already in use, change the first number (e.g., "5174:5173")
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE=/api
+    depends_on:
+      - backend

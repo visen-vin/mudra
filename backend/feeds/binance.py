@@ -2,8 +2,12 @@
 import aiohttp
 import asyncio
 import json
+import hmac
+import hashlib
+import time
 from typing import Callable, Dict, List, Optional
 from datetime import datetime
+from urllib.parse import urlencode
 from backend.feeds.base import MarketAdapter
 from backend.database import Candle
 from backend.schemas import Order, OrderResponse
@@ -120,7 +124,71 @@ class BinanceAdapter(MarketAdapter):
 
     async def place_order(self, order: Order) -> OrderResponse:
         """Place market or limit order on Binance (live mode only)"""
-        raise NotImplementedError(
-            "place_order not yet implemented — requires HMAC-SHA256 request signing. "
-            "Implement in Phase 5 (Live Mode)"
-        )
+        if not Config.BINANCE_API_KEY or not Config.BINANCE_API_SECRET:
+            logger.error("Binance API credentials missing")
+            return OrderResponse(
+                order_id="",
+                status="ERROR: Missing API credentials"
+            )
+
+        if not self.session:
+            await self.connect()
+
+        endpoint = f"{self.BASE_URL}/order"
+        
+        # side: long -> BUY, short -> SELL
+        side = "BUY" if order.side == "long" else "SELL"
+        # type: if order.price exists -> LIMIT, else MARKET
+        order_type = "LIMIT" if order.price else "MARKET"
+        
+        params = {
+            "symbol": order.symbol,
+            "side": side,
+            "type": order_type,
+            "quantity": order.qty,
+            "timestamp": int(time.time() * 1000),
+        }
+        
+        if order_type == "LIMIT":
+            params["price"] = order.price
+            params["timeInForce"] = "GTC"
+        elif order_type == "MARKET":
+            # Ensure timeInForce is NOT sent for MARKET orders
+            if "timeInForce" in params:
+                del params["timeInForce"]
+            
+        # Signature
+        query_string = urlencode(params)
+        signature = hmac.new(
+            Config.BINANCE_API_SECRET.encode("utf-8"),
+            query_string.encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
+        
+        params["signature"] = signature
+        
+        headers = {
+            "X-MBX-APIKEY": Config.BINANCE_API_KEY
+        }
+        
+        try:
+            async with self.session.post(endpoint, params=params, headers=headers) as resp:
+                data = await resp.json()
+                if resp.status == 200:
+                    return OrderResponse(
+                        order_id=str(data["orderId"]),
+                        status=data["status"]
+                    )
+                else:
+                    logger.error(f"Binance order failed: {data}")
+                    return OrderResponse(
+                        order_id="",
+                        status=f"FAILED: {data.get('msg', 'Unknown error')}"
+                    )
+        except Exception as e:
+            logger.error(f"Error placing Binance order: {e}")
+            return OrderResponse(
+                order_id="",
+                status=f"ERROR: {str(e)}"
+            )
+
