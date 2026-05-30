@@ -15,6 +15,8 @@ class PositionCreate(BaseModel):
 
 class PositionRead(BaseModel):
     id: str
+    signal_id: Optional[str]
+    market: str
     symbol: str
     side: str
     qty: float
@@ -45,6 +47,7 @@ class SignalRead(BaseModel):
     symbol: str
     side: str
     confidence: float
+    candle_close_time: datetime
     emitted_at: datetime
 
     class Config:
