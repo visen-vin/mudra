@@ -122,6 +122,29 @@ class BinanceAdapter(MarketAdapter):
         # In the full implementation, this would wire up the callback to price events
         pass
 
+    async def start_kline_stream(self, symbol: str, interval: str, callback: Callable):
+        """Start kline stream for a symbol and interval"""
+        if not self.session:
+            await self.connect()
+
+        stream_name = f"{symbol.lower()}@kline_{interval}"
+        url = f"{self.WS_URL}/{stream_name}"
+        
+        logger.info(f"Connecting to Binance WS: {url}")
+        try:
+            async with self.session.ws_connect(url) as ws:
+                self.ws = ws
+                async for msg in ws:
+                    if msg.type == aiohttp.WSMsgType.TEXT:
+                        data = json.loads(msg.data)
+                        await callback(data)
+                    elif msg.type == aiohttp.WSMsgType.ERROR:
+                        logger.error(f"Binance WS error: {ws.exception()}")
+                        break
+        except Exception as e:
+            logger.error(f"Binance WS connection failed: {e}")
+            raise
+
     async def place_order(self, order: Order) -> OrderResponse:
         """Place market or limit order on Binance (live mode only)"""
         if not Config.BINANCE_API_KEY or not Config.BINANCE_API_SECRET:

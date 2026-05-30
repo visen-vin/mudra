@@ -41,7 +41,7 @@ class ZerodhaAdapter(MarketAdapter):
         logger.warning(f"Zerodha: price not cached for {symbol}")
         return None
     
-    async def get_candles(self, symbol: str, limit: int = 100) -> List[Candle]:
+    async def get_candles(self, symbol: str, timeframe: str, limit: int = 100) -> List[Candle]:
         """Get candles from Zerodha"""
         if not self.access_token:
             logger.error("Zerodha: access_token not set")
@@ -49,7 +49,7 @@ class ZerodhaAdapter(MarketAdapter):
         
         # TODO: Implement Zerodha API call
         # GET /instruments/historical/...
-        logger.warning(f"Zerodha: candles not implemented for {symbol}")
+        logger.warning(f"Zerodha: candles not implemented for {symbol} ({timeframe})")
         return []
     
     async def on_price_update(self, callback: Callable):

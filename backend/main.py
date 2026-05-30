@@ -1,13 +1,68 @@
-# backend/main.py (updated)
+# backend/main.py
+import asyncio
+import os
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
+import redis.asyncio as redis
+
 from backend.config import Config
 from backend.database import init_db
 from backend.api.routes import router
+from backend.services.data_ingestion import DataIngestionService
+from backend.feeds.binance import BinanceAdapter
+from backend.feeds.zerodha import ZerodhaAdapter
 
-app = FastAPI(title="Mudra Trading", version="0.1.0")
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    logger.info("Initializing Mudra System...")
+    init_db()
+    
+    # Initialize Adapters
+    binance = BinanceAdapter(
+        api_key=os.getenv("BINANCE_API_KEY"),
+        api_secret=os.getenv("BINANCE_API_SECRET")
+    )
+    zerodha = ZerodhaAdapter(
+        access_token=os.getenv("ZERODHA_ACCESS_TOKEN")
+    )
+    
+    # Initialize Redis
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_client = redis.from_url(redis_url, decode_responses=True)
+    
+    # Initialize and Start Data Ingestion Service
+    ingestion_service = DataIngestionService(
+        redis_client=redis_client,
+        binance_adapter=binance,
+        zerodha_adapter=zerodha
+    )
+    
+    # Start ingestion in the background
+    ingestion_task = asyncio.create_task(ingestion_service.run())
+    
+    # Store instances in app state for access in routes if needed
+    app.state.binance = binance
+    app.state.zerodha = zerodha
+    app.state.redis = redis_client
+    app.state.ingestion_service = ingestion_service
+    
+    yield
+    
+    # Shutdown logic
+    logger.info("Shutting down Mudra System...")
+    ingestion_task.cancel()
+    await binance.disconnect()
+    await redis_client.close()
+
+app = FastAPI(title="Mudra Trading", version="0.1.0", lifespan=lifespan)
 
 # Enable CORS
 app.add_middleware(
@@ -17,9 +72,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize database
-init_db()
 
 @app.get("/health")
 async def health():

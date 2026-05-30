@@ -79,6 +79,23 @@ services:
     # Network
     networks:
       - mudra-net
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: mudra-redis
+    restart: always
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mudra-net
 
     # Resource limits (optional - adjust based on VPS specs)
     # Uncomment to enable limits
@@ -113,6 +130,8 @@ volumes:
   mudra-data:
     driver: local
   mudra-logs:
+    driver: local
+  redis-data:
     driver: local
 
 # Networks

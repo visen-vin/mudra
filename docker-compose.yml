@@ -12,14 +12,33 @@ services:
       - .env
     environment:
       - DATABASE_URL=sqlite:///data/mudra.db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
 
   frontend:
     build:
       context: ./frontend
     ports:
-      # If 5173 is already in use, change the first number (e.g., "5174:5173")
+      # If 5173 is already in use, change the first number (e.g., "5173:5173")
       - "5173:5173"
     environment:
       - VITE_API_BASE=/api
     depends_on:
       - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis-data:
