@@ -17,7 +17,7 @@ class MarketAdapter(ABC):
         pass
 
     @abstractmethod
-    async def get_price(self, symbol: str) -> float:
+    async def get_price(self, symbol: str) -> Optional[float]:
         """Get current price for symbol"""
         pass
 

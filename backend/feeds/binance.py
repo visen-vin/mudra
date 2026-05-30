@@ -36,7 +36,7 @@ class BinanceAdapter(MarketAdapter):
             await self.ws.close()
         logger.info("Binance adapter disconnected")
 
-    async def get_price(self, symbol: str) -> float:
+    async def get_price(self, symbol: str) -> Optional[float]:
         """Get current price from cache or REST API"""
         if symbol in self.prices:
             return self.prices[symbol]
