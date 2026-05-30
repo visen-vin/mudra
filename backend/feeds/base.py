@@ -1,7 +1,8 @@
 # backend/feeds/base.py
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Callable, List, Optional
 from backend.database import Candle
+from backend.schemas import Order, OrderResponse
 
 class MarketAdapter(ABC):
     """Base class for market data adapters (Binance, Zerodha, etc.)"""
@@ -9,29 +10,29 @@ class MarketAdapter(ABC):
     @abstractmethod
     async def connect(self):
         """Establish connection to market data source"""
-        pass
+        raise NotImplementedError("Subclasses must implement connect()")
 
     @abstractmethod
     async def disconnect(self):
         """Close connection to market data source"""
-        pass
+        raise NotImplementedError("Subclasses must implement disconnect()")
 
     @abstractmethod
     async def get_price(self, symbol: str) -> Optional[float]:
         """Get current price for symbol"""
-        pass
+        raise NotImplementedError("Subclasses must implement get_price()")
 
     @abstractmethod
     async def get_candles(self, symbol: str, timeframe: str, limit: int = 100) -> List[Candle]:
         """Get historical candles"""
-        pass
+        raise NotImplementedError("Subclasses must implement get_candles()")
 
     @abstractmethod
-    async def on_price_update(self, symbol: str, price: float):
-        """Called when price updates"""
-        pass
+    async def on_price_update(self, callback: Callable):
+        """Register callback dict to fire on price ticks"""
+        raise NotImplementedError("Subclasses must implement on_price_update()")
 
     @abstractmethod
-    async def place_order(self, symbol: str, side: str, qty: float, price: Optional[float] = None) -> Dict:
-        """Place market or limit order. Returns order dict with id, status, avg_price"""
-        pass
+    async def place_order(self, order: Order) -> OrderResponse:
+        """Place market or limit order. Returns OrderResponse with id and status"""
+        raise NotImplementedError("Subclasses must implement place_order()")

@@ -52,3 +52,15 @@ class SignalRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class Order(BaseModel):
+    """Order request model for place_order"""
+    symbol: str
+    side: Literal["long", "short"]
+    qty: float
+    price: Optional[float] = None
+
+class OrderResponse(BaseModel):
+    """Order response model returned by place_order"""
+    order_id: str
+    status: str

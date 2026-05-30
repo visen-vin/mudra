@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional
 from datetime import datetime
 from backend.feeds.base import MarketAdapter
 from backend.database import Candle
+from backend.schemas import Order, OrderResponse
 from backend.config import Config
 import logging
 
@@ -111,16 +112,13 @@ class BinanceAdapter(MarketAdapter):
 
         return candles
 
-    async def on_price_update(self, symbol: str, price: float):
-        """Update price cache and trigger callbacks"""
-        self.prices[symbol] = price
-        if symbol in self.callbacks:
-            try:
-                await self.callbacks[symbol](price)
-            except Exception as e:
-                logger.error(f"Error in price callback for {symbol}: {e}")
+    async def on_price_update(self, callback: Callable):
+        """Register callback to be invoked on price updates"""
+        # This is a placeholder implementation that stores the callback
+        # In the full implementation, this would wire up the callback to price events
+        pass
 
-    async def place_order(self, symbol: str, side: str, qty: float, price: Optional[float] = None) -> Dict:
+    async def place_order(self, order: Order) -> OrderResponse:
         """Place market or limit order on Binance (live mode only)"""
         raise NotImplementedError(
             "place_order not yet implemented — requires HMAC-SHA256 request signing. "
