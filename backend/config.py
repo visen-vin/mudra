@@ -12,8 +12,8 @@ class Config:
     ZERODHA_SESSION_TOKEN = os.getenv("ZERODHA_SESSION_TOKEN", "")
 
     # Trading defaults
-    DEFAULT_MODE = "paper"  # paper | live
-    DEFAULT_TIMEFRAME = "15m"
+    DEFAULT_MODE = os.getenv("DEFAULT_MODE", "paper")
+    DEFAULT_TIMEFRAME = os.getenv("DEFAULT_TIMEFRAME", "15m")
 
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
