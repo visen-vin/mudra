@@ -2,7 +2,7 @@
 import aiohttp
 import asyncio
 import json
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from datetime import datetime
 from backend.feeds.base import MarketAdapter
 from backend.database import Candle
@@ -21,7 +21,7 @@ class BinanceAdapter(MarketAdapter):
         self.session: Optional[aiohttp.ClientSession] = None
         self.prices: Dict[str, float] = {}
         self.ws: Optional[aiohttp.ClientWebSocketResponse] = None
-        self.callbacks = {}  # symbol -> callback
+        self.callbacks: Dict[str, Callable] = {}  # symbol -> callback
 
     async def connect(self):
         """Establish connection to Binance APIs"""
@@ -38,6 +38,10 @@ class BinanceAdapter(MarketAdapter):
 
     async def get_price(self, symbol: str) -> Optional[float]:
         """Get current price from cache or REST API"""
+        if not self.session:
+            logger.error(f"Adapter not connected — call connect() first for {symbol}")
+            return None
+
         if symbol in self.prices:
             return self.prices[symbol]
 
@@ -62,6 +66,10 @@ class BinanceAdapter(MarketAdapter):
 
     async def get_candles(self, symbol: str, timeframe: str, limit: int = 100) -> List[Candle]:
         """Fetch historical candles from Binance REST API"""
+        if not self.session:
+            logger.error(f"Adapter not connected — call connect() first for {symbol}")
+            return []
+
         try:
             async with self.session.get(
                 f"{self.BASE_URL}/klines",
@@ -94,7 +102,7 @@ class BinanceAdapter(MarketAdapter):
                     high=float(row[2]),
                     low=float(row[3]),
                     close=float(row[4]),
-                    volume=float(row[7])
+                    volume=float(row[5])  # base asset volume (not quote asset volume)
                 )
                 candles.append(candle)
             except (IndexError, ValueError, TypeError) as e:
@@ -114,28 +122,7 @@ class BinanceAdapter(MarketAdapter):
 
     async def place_order(self, symbol: str, side: str, qty: float, price: Optional[float] = None) -> Dict:
         """Place market or limit order on Binance (live mode only)"""
-        if not Config.BINANCE_API_KEY:
-            raise ValueError("BINANCE_API_KEY not configured")
-
-        order_type = "LIMIT" if price else "MARKET"
-
-        params = {
-            "symbol": symbol,
-            "side": side.upper(),
-            "type": order_type,
-            "quantity": qty,
-            "timestamp": int(datetime.utcnow().timestamp() * 1000)
-        }
-
-        if price:
-            params["price"] = price
-
-        # Note: Full implementation requires request signing with BINANCE_API_SECRET
-        # This is a placeholder that shows the structure
-        logger.warning("place_order called but signing not yet implemented")
-
-        return {
-            "id": None,
-            "status": "PENDING",
-            "avg_price": price or 0
-        }
+        raise NotImplementedError(
+            "place_order not yet implemented — requires HMAC-SHA256 request signing. "
+            "Implement in Phase 5 (Live Mode)"
+        )

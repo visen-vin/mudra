@@ -9,6 +9,7 @@ from datetime import datetime
 async def test_binance_get_price_from_cache():
     """Test retrieving price from cache"""
     adapter = BinanceAdapter()
+    adapter.session = MagicMock()  # session must be set; cache hit avoids any actual call
     adapter.prices["BTCUSDT"] = 50000.0
 
     price = await adapter.get_price("BTCUSDT")
@@ -102,3 +103,55 @@ async def test_binance_get_candles_parse_error():
     candles = await adapter.get_candles("BTCUSDT", "15m", 1)
 
     assert candles == []  # Returns empty list on parse error
+
+@pytest.mark.asyncio
+async def test_binance_get_price_rest_fallback():
+    """Test that get_price falls back to REST when not in cache"""
+    adapter = BinanceAdapter()
+    adapter.session = MagicMock()
+
+    # Mock successful REST response
+    mock_response = AsyncMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={"price": "52000"})
+
+    ctx = AsyncMock()
+    ctx.__aenter__ = AsyncMock(return_value=mock_response)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    adapter.session.get.return_value = ctx
+
+    price = await adapter.get_price("BTCUSDT")
+
+    assert price == 52000.0
+    assert adapter.prices["BTCUSDT"] == 52000.0  # cached
+
+@pytest.mark.asyncio
+async def test_binance_on_price_update_fires_callback():
+    """Test that price updates trigger registered callbacks"""
+    adapter = BinanceAdapter()
+
+    callback = AsyncMock()
+    adapter.callbacks["BTCUSDT"] = callback
+
+    await adapter.on_price_update("BTCUSDT", 51500.0)
+
+    callback.assert_called_once_with(51500.0)
+    assert adapter.prices["BTCUSDT"] == 51500.0
+
+@pytest.mark.asyncio
+async def test_binance_get_price_before_connect_returns_none():
+    """Test that get_price returns None if connect() not called"""
+    adapter = BinanceAdapter()  # session is None
+
+    price = await adapter.get_price("BTCUSDT")
+
+    assert price is None
+
+@pytest.mark.asyncio
+async def test_binance_get_candles_before_connect_returns_empty():
+    """Test that get_candles returns empty list if connect() not called"""
+    adapter = BinanceAdapter()  # session is None
+
+    candles = await adapter.get_candles("BTCUSDT", "15m")
+
+    assert candles == []
