@@ -6,7 +6,9 @@ from backend.schemas import PositionCreate, PositionRead, SignalRead, SignalCrea
 from backend.engine.trade_engine import TradeEngine
 from backend.feeds.binance import BinanceAdapter
 from backend.services.signal_service import SignalService
-from typing import List
+from backend.services.watchlist_manager import WatchlistManager
+from typing import List, Dict, Any
+from fastapi import Request
 
 router = APIRouter(prefix="/api", tags=["trading"])
 engine = TradeEngine()
@@ -14,6 +16,39 @@ engine = TradeEngine()
 # Initialize and register adapters
 binance = BinanceAdapter()
 engine.register_adapter("crypto", binance)
+
+@router.get("/screener/latest")
+async def get_latest_signals(request: Request):
+    """Get the latest aggregated signals from the screener"""
+    redis = request.app.state.redis
+    import json
+    data = await redis.get("screener_signals:latest")
+    return json.loads(data) if data else {"signals": [], "timestamp": None}
+
+@router.get("/watchlist")
+async def get_watchlist(request: Request):
+    """Get current active watchlist"""
+    redis = request.app.state.redis
+    import json
+    data = await redis.get("watchlist:active")
+    symbols = json.loads(data) if data else []
+    return {"symbols": symbols, "count": len(symbols)}
+
+@router.post("/watchlist/add")
+async def add_to_watchlist(request: Request, symbol: str, market: str = "crypto"):
+    """Add a symbol to the watchlist"""
+    redis = request.app.state.redis
+    manager = WatchlistManager(redis)
+    updated = await manager.add_symbol(symbol, market)
+    return {"symbols": updated, "status": "added"}
+
+@router.delete("/watchlist/{symbol}")
+async def remove_from_watchlist(request: Request, symbol: str):
+    """Remove a symbol from the watchlist"""
+    redis = request.app.state.redis
+    manager = WatchlistManager(redis)
+    updated = await manager.remove_symbol(symbol)
+    return {"symbols": updated, "status": "removed"}
 
 @router.get("/signals", response_model=List[SignalRead])
 def get_signals(strategy: str = None, limit: int = 100, offset: int = 0):

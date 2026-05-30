@@ -12,6 +12,8 @@ from backend.config import Config
 from backend.database import init_db
 from backend.api.routes import router
 from backend.services.data_ingestion import DataIngestionService
+from backend.services.scheduler import ScreenerScheduler
+from backend.services.watchlist_manager import WatchlistManager
 from backend.feeds.binance import BinanceAdapter
 from backend.feeds.zerodha import ZerodhaAdapter
 
@@ -25,15 +27,19 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Mudra System...")
     init_db()
     
+    # Initialize Redis
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_client = redis.from_url(redis_url, decode_responses=True)
+    
+    # Sync Watchlist
+    watchlist_manager = WatchlistManager(redis_client)
+    await watchlist_manager.sync_redis_from_db()
+    
     # Initialize Adapters
     binance = BinanceAdapter()
     zerodha = ZerodhaAdapter()
     if os.getenv("ZERODHA_ACCESS_TOKEN"):
         zerodha.access_token = os.getenv("ZERODHA_ACCESS_TOKEN")
-    
-    # Initialize Redis
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    redis_client = redis.from_url(redis_url, decode_responses=True)
     
     # Initialize and Start Data Ingestion Service
     ingestion_service = DataIngestionService(
@@ -42,19 +48,26 @@ async def lifespan(app: FastAPI):
         zerodha_adapter=zerodha
     )
     
-    # Start ingestion in the background
+    # Initialize and Start Screener Scheduler
+    screener_scheduler = ScreenerScheduler(redis_client=redis_client)
+    
+    # Start background tasks
     ingestion_task = asyncio.create_task(ingestion_service.run())
+    screener_scheduler.start()
     
     # Store instances in app state for access in routes if needed
     app.state.binance = binance
     app.state.zerodha = zerodha
     app.state.redis = redis_client
     app.state.ingestion_service = ingestion_service
+    app.state.screener_scheduler = screener_scheduler
+    app.state.watchlist_manager = watchlist_manager
     
     yield
     
     # Shutdown logic
     logger.info("Shutting down Mudra System...")
+    screener_scheduler.stop()
     ingestion_task.cancel()
     await binance.disconnect()
     await redis_client.close()

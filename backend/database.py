@@ -61,6 +61,21 @@ class Candle(Base):
     close = Column(Float, nullable=False)
     volume = Column(Float, nullable=False)
 
+class StrategyConfig(Base):
+    __tablename__ = "strategy_configs"
+
+    name = Column(String(50), primary_key=True)
+    enabled = Column(Boolean, default=True)
+    config = Column(String(500), nullable=True)  # JSON string for extra config
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class WatchlistSymbol(Base):
+    __tablename__ = "watchlist"
+
+    symbol = Column(String(20), primary_key=True)
+    market = Column(String(20), nullable=False)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
 # Create engine and session
 engine = create_engine(Config.DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
