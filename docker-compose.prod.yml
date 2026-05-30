@@ -1,0 +1,121 @@
+version: '3.8'
+
+# Production Docker Compose for Hostinger VPS
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  mudra:
+    # Build from local Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Container name for easy reference
+    container_name: mudra-app
+
+    # Port mapping: expose 8000 internally only
+    # Nginx handles external traffic on 80/443
+    ports:
+      - "8000:8000"
+
+    # Volume mounts
+    volumes:
+      # SQLite database persistence
+      - mudra-data:/app/data
+
+      # Application logs
+      - mudra-logs:/app/logs
+
+      # Optional: bind mount for easier access
+      # - ./data:/app/data
+      # - ./logs:/app/logs
+
+    # Environment variables from .env file
+    env_file:
+      - .env
+
+    # Additional environment variables (override .env if needed)
+    environment:
+      # Database URL with absolute path
+      - DATABASE_URL=sqlite:////app/data/mudra.db
+
+      # Python settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+      # Application settings
+      - ENV=production
+
+    # Restart policy
+    # - always: restart unless explicitly stopped
+    # - on-failure: restart only if exit code != 0
+    restart: always
+
+    # Health check
+    healthcheck:
+      # Check if FastAPI health endpoint responds
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+
+      # Check every 30 seconds
+      interval: 30s
+
+      # Wait 10 seconds for response
+      timeout: 10s
+
+      # Retry 3 times before marking unhealthy
+      retries: 3
+
+      # Wait 40 seconds before first check (app startup time)
+      start_period: 40s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=mudra"
+
+    # Network
+    networks:
+      - mudra-net
+
+    # Resource limits (optional - adjust based on VPS specs)
+    # Uncomment to enable limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1.5G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 1G
+
+  # Optional: Nginx reverse proxy (use external Nginx instead for better control)
+  # Keeping Dockerfile-based nginx commented out
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: mudra-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - /etc/letsencrypt:/etc/letsencrypt:ro
+  #   depends_on:
+  #     - mudra
+  #   networks:
+  #     - mudra-net
+  #   restart: always
+
+# Named volumes for persistence
+volumes:
+  mudra-data:
+    driver: local
+  mudra-logs:
+    driver: local
+
+# Networks
+networks:
+  mudra-net:
+    driver: bridge
