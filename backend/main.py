@@ -21,6 +21,10 @@ app.add_middleware(
 # Initialize database
 init_db()
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 # Include API routes
 app.include_router(router)
 
@@ -28,10 +32,6 @@ app.include_router(router)
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
