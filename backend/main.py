@@ -26,13 +26,10 @@ async def lifespan(app: FastAPI):
     init_db()
     
     # Initialize Adapters
-    binance = BinanceAdapter(
-        api_key=os.getenv("BINANCE_API_KEY"),
-        api_secret=os.getenv("BINANCE_API_SECRET")
-    )
-    zerodha = ZerodhaAdapter(
-        access_token=os.getenv("ZERODHA_ACCESS_TOKEN")
-    )
+    binance = BinanceAdapter()
+    zerodha = ZerodhaAdapter()
+    if os.getenv("ZERODHA_ACCESS_TOKEN"):
+        zerodha.access_token = os.getenv("ZERODHA_ACCESS_TOKEN")
     
     # Initialize Redis
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
