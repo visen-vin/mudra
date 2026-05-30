@@ -88,7 +88,7 @@ class TradeEngine:
             position.exit_reason = "manual"
 
             # Calculate PnL
-            pnl, pnl_pct = PnLCalculator.calculate(
+            pnl, _ = PnLCalculator.calculate(
                 position.side,
                 position.entry_price,
                 position.exit_price,

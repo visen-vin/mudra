@@ -49,3 +49,51 @@ def test_pnl_short_loss():
     )
     assert pnl == -1000
     assert abs(pnl_pct - (-2.0)) < 0.01
+
+
+def test_pnl_zero_entry_price():
+    """Test that zero entry_price raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        PnLCalculator.calculate(
+            side="long",
+            entry_price=0,
+            exit_price=51000,
+            qty=1.0
+        )
+    assert "entry_price and qty must be > 0" in str(exc_info.value)
+
+
+def test_pnl_negative_entry_price():
+    """Test that negative entry_price raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        PnLCalculator.calculate(
+            side="long",
+            entry_price=-50000,
+            exit_price=51000,
+            qty=1.0
+        )
+    assert "entry_price and qty must be > 0" in str(exc_info.value)
+
+
+def test_pnl_zero_qty():
+    """Test that zero qty raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        PnLCalculator.calculate(
+            side="long",
+            entry_price=50000,
+            exit_price=51000,
+            qty=0
+        )
+    assert "entry_price and qty must be > 0" in str(exc_info.value)
+
+
+def test_pnl_negative_qty():
+    """Test that negative qty raises ValueError"""
+    with pytest.raises(ValueError) as exc_info:
+        PnLCalculator.calculate(
+            side="long",
+            entry_price=50000,
+            exit_price=51000,
+            qty=-1.0
+        )
+    assert "entry_price and qty must be > 0" in str(exc_info.value)

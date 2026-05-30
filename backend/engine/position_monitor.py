@@ -18,13 +18,16 @@ class PositionMonitor:
         """
         Check if position should exit based on SL/TP.
         Returns exit_event if triggered, else None.
+
+        SL has priority over TP: if both are hit in the same price update,
+        SL takes precedence (is checked first, TP only checked if SL didn't trigger).
         """
         if position.status != "OPEN":
             return None
 
         exit_event = None
 
-        # Check SL
+        # Check SL first (priority)
         if position.side == "long" and current_price <= position.sl:
             exit_event = {
                 "position_id": position.id,
@@ -40,21 +43,22 @@ class PositionMonitor:
                 "status": "CLOSED"
             }
 
-        # Check TP
-        if position.side == "long" and current_price >= position.tp:
-            exit_event = {
-                "position_id": position.id,
-                "exit_price": current_price,
-                "exit_reason": "TP",
-                "status": "CLOSED"
-            }
-        elif position.side == "short" and current_price <= position.tp:
-            exit_event = {
-                "position_id": position.id,
-                "exit_price": current_price,
-                "exit_reason": "TP",
-                "status": "CLOSED"
-            }
+        # Check TP only if SL didn't trigger
+        if exit_event is None:
+            if position.side == "long" and current_price >= position.tp:
+                exit_event = {
+                    "position_id": position.id,
+                    "exit_price": current_price,
+                    "exit_reason": "TP",
+                    "status": "CLOSED"
+                }
+            elif position.side == "short" and current_price <= position.tp:
+                exit_event = {
+                    "position_id": position.id,
+                    "exit_price": current_price,
+                    "exit_reason": "TP",
+                    "status": "CLOSED"
+                }
 
         return exit_event
 
@@ -67,7 +71,7 @@ class PositionMonitor:
             position.exit_price = exit_event["exit_price"]
             position.exit_reason = exit_event["exit_reason"]
 
-            pnl, pnl_pct = PnLCalculator.calculate(
+            pnl, _ = PnLCalculator.calculate(
                 position.side,
                 position.entry_price,
                 position.exit_price,
@@ -79,7 +83,10 @@ class PositionMonitor:
             logger.info(f"Position {position.id} closed: {exit_event['exit_reason']} @ {exit_event['exit_price']}, PnL: {pnl}")
 
             if self.on_exit_callback:
-                await self.on_exit_callback(position)
+                try:
+                    await self.on_exit_callback(position)
+                except Exception as e:
+                    logger.error(f"Callback failed for position {position.id}: {e}", exc_info=True)
 
         finally:
             db.close()

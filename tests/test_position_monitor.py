@@ -100,3 +100,53 @@ def test_position_monitor_no_exit():
     exit_event = monitor.check_exit(position, 50500)  # Between SL and TP
 
     assert exit_event is None
+
+
+def test_position_monitor_sl_priority_over_tp_long():
+    """Test that SL takes priority over TP for long positions"""
+    position = Position(
+        id="test_5",
+        symbol="BTCUSDT",
+        market="crypto",
+        side="long",
+        qty=1.0,
+        entry_price=50000,
+        sl=49000,
+        tp=51000,
+        status="OPEN",
+        mode="paper",
+        opened_at=datetime.utcnow()
+    )
+
+    monitor = PositionMonitor()
+    # Price hits SL - even if TP would also be hit, SL should win
+    exit_event = monitor.check_exit(position, 48900)
+
+    assert exit_event is not None
+    assert exit_event["exit_reason"] == "SL"
+    assert exit_event["exit_price"] == 48900
+
+
+def test_position_monitor_sl_priority_over_tp_short():
+    """Test that SL takes priority over TP for short positions"""
+    position = Position(
+        id="test_6",
+        symbol="BTCUSDT",
+        market="crypto",
+        side="short",
+        qty=1.0,
+        entry_price=50000,
+        sl=51000,
+        tp=49000,
+        status="OPEN",
+        mode="paper",
+        opened_at=datetime.utcnow()
+    )
+
+    monitor = PositionMonitor()
+    # Price hits SL - even if TP would also be hit, SL should win
+    exit_event = monitor.check_exit(position, 51100)
+
+    assert exit_event is not None
+    assert exit_event["exit_reason"] == "SL"
+    assert exit_event["exit_price"] == 51100
