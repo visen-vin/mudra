@@ -1,17 +1,17 @@
 # backend/schemas.py
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 class PositionCreate(BaseModel):
     symbol: str
-    market: str  # "crypto", "indian_equity"
-    side: str  # "long", "short"
+    market: Literal["crypto", "indian_equity"]
+    side: Literal["long", "short"]
     qty: float
     entry_price: float
     sl: float
     tp: float
-    mode: str = "paper"  # "paper", "live"
+    mode: Literal["paper", "live"] = "paper"
 
 class PositionRead(BaseModel):
     id: str
@@ -37,7 +37,7 @@ class PositionRead(BaseModel):
 class SignalCreate(BaseModel):
     strategy: str
     symbol: str
-    side: str
+    side: Literal["long", "short"]
     confidence: float
     candle_close_time: datetime
 

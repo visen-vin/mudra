@@ -27,11 +27,13 @@ class Position(Base):
     exit_reason = Column(String(20), nullable=True)  # "SL", "TP", "manual"
     pnl = Column(Float, nullable=True)
 
-    def calculate_pnl(self, exit_price):
+    def calculate_pnl(self, exit_price: float) -> float:
         if self.side == "long":
             return (exit_price - self.entry_price) * self.qty
-        else:  # short
+        elif self.side == "short":
             return (self.entry_price - exit_price) * self.qty
+        else:
+            raise ValueError(f"Invalid side: {self.side!r}. Expected 'long' or 'short'.")
 
 class Signal(Base):
     __tablename__ = "signals"
@@ -53,11 +55,11 @@ class Candle(Base):
     timeframe = Column(String(5), nullable=False)
     open_time = Column(DateTime, nullable=False)
     close_time = Column(DateTime, nullable=False)
-    o = Column(Float, nullable=False)
-    h = Column(Float, nullable=False)
-    l = Column(Float, nullable=False)
-    c = Column(Float, nullable=False)
-    v = Column(Float, nullable=False)
+    open = Column(Float, nullable=False)
+    high = Column(Float, nullable=False)
+    low = Column(Float, nullable=False)
+    close = Column(Float, nullable=False)
+    volume = Column(Float, nullable=False)
 
 # Create engine and session
 engine = create_engine(Config.DATABASE_URL)
